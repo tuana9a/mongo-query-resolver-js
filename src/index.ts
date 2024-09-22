@@ -4,11 +4,11 @@
 import { Filter, ObjectId } from "mongodb";
 import _ from "lodash";
 
-export const merinCfg = {
+export const config = {
   regexFlags: "i",
 };
 
-export const auto = (value) => {
+export const configValue = (value) => {
   let output = value;
   try {
     if (value.match(/^\d+$/)) {
@@ -30,7 +30,7 @@ export class Query {
   constructor(key: string, operator: string, value: string) {
     this.key = key;
     this.operator = operator;
-    this.value = auto(value);
+    this.value = configValue(value);
   }
 }
 
@@ -38,7 +38,7 @@ export const isValidQuery = (q: Query) => q.key && q.operator;
 
 export const regex = /(\w+\s*)(==|>=|<=|!=|\*=|>|<)(.*)/;
 
-export const resolveQuery = (str: string) => {
+export const criteria = (str: string) => {
   const matcher = str.match(regex);
   if (matcher) {
     return new Query(matcher[1], matcher[2], matcher[3]);
@@ -63,14 +63,14 @@ export const aggregate = <T>(filter: Filter<T>, query: Query) => {
     _.set(
       filter,
       `${query.key}.$regex`,
-      new RegExp(query.value, merinCfg.regexFlags)
+      new RegExp(query.value, config.regexFlags)
     );
   }
   return filter;
 };
 
-export const resolveMongoFilter = <T>(queries: string[] = []): Filter<T> =>
+export const query = <T>(queries: string[] = []): Filter<T> =>
   queries
-    .map((x) => resolveQuery(x))
+    .map((x) => criteria(x))
     .filter((x) => isValidQuery(x))
     .reduce(aggregate, {});
