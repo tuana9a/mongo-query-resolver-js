@@ -54,11 +54,11 @@ describe("mongo-query-resolver-js", () => {
   });
 
   test("auto number", () => {
-    expect(resolver.configValue("1234")).toEqual(1234);
+    expect(resolver.valueResolver("1234")).toEqual(1234);
   });
 
   test("auto object id", () => {
     const id = new ObjectId();
-    expect(resolver.configValue(id.toHexString())).toEqual(id);
+    expect(resolver.valueResolver(id.toHexString())).toEqual(id);
   });
 });

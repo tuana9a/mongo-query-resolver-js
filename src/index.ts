@@ -8,7 +8,7 @@ export const config = {
   regexFlags: "i",
 };
 
-export const configValue = (value) => {
+export const valueResolver = (value) => {
   let output = value;
   try {
     if (value.match(/^\d+$/)) {
@@ -22,7 +22,7 @@ export const configValue = (value) => {
   return output;
 };
 
-export class Query {
+export class Criteria {
   key: string;
   operator: string;
   value;
@@ -30,23 +30,23 @@ export class Query {
   constructor(key: string, operator: string, value: string) {
     this.key = key;
     this.operator = operator;
-    this.value = configValue(value);
+    this.value = valueResolver(value);
   }
 }
 
-export const isValidQuery = (q: Query) => q.key && q.operator;
+export const isValidQuery = (q: Criteria) => q.key && q.operator;
 
 export const regex = /(\w+\s*)(==|>=|<=|!=|\*=|>|<)(.*)/;
 
 export const criteria = (str: string) => {
   const matcher = str.match(regex);
   if (matcher) {
-    return new Query(matcher[1], matcher[2], matcher[3]);
+    return new Criteria(matcher[1], matcher[2], matcher[3]);
   }
-  return new Query(null, null, null);
+  return new Criteria(null, null, null);
 };
 
-export const aggregate = <T>(filter: Filter<T>, query: Query) => {
+export const aggregate = <T>(filter: Filter<T>, query: Criteria) => {
   if (query.operator == "==") {
     _.set(filter, `${query.key}`, query.value);
   } else if (query.operator == "!=") {
