@@ -128,3 +128,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# @tuana9a: ignore package-lock.json as yarn.lock is replacement
+package-lock.json
+
+# @tuana9a: ingore tmp files like: test.tmp.js
+*tmp*
