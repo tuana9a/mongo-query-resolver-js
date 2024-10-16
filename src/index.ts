@@ -4,24 +4,6 @@
 import { Filter, ObjectId } from "mongodb";
 import _ from "lodash";
 
-export const config = {
-  regexFlags: "i",
-};
-
-export const valueResolver = (value) => {
-  let output = value;
-  try {
-    if (value.match(/^\d+$/)) {
-      output = parseInt(value);
-    } else if (ObjectId.isValid(value)) {
-      output = new ObjectId(value);
-    }
-  } catch (ignored) {
-    //
-  }
-  return output;
-};
-
 export class Criteria {
   key: string;
   operator: string;
@@ -30,47 +12,66 @@ export class Criteria {
   constructor(key: string, operator: string, value: string) {
     this.key = key;
     this.operator = operator;
-    this.value = valueResolver(value);
+    this.value = resolveValue(value);
   }
 }
 
-export const isValidQuery = (q: Criteria) => q.key && q.operator;
+export class InvalidCriteriaError extends Error {
+  _isMongoQueryResolverError = true;
+  constructor(msg: string) {
+    super("InvalidCriteriaError: " + msg)
+  }
+}
 
 export const regex = /(\w+\s*)(==|>=|<=|!=|\*=|>|<)(.*)/;
 
-export const criteria = (str: string) => {
-  const matcher = str.match(regex);
-  if (matcher) {
-    return new Criteria(matcher[1], matcher[2], matcher[3]);
-  }
-  return new Criteria(null, null, null);
+export const config = {
+  regexFlags: "i",
+  queryDelimiter: ",",
 };
 
-export const aggregate = <T>(filter: Filter<T>, query: Criteria) => {
-  if (query.operator == "==") {
-    _.set(filter, `${query.key}`, query.value);
-  } else if (query.operator == "!=") {
-    _.set(filter, `${query.key}.$ne`, query.value);
-  } else if (query.operator == ">") {
-    _.set(filter, `${query.key}.$gt`, query.value);
-  } else if (query.operator == "<") {
-    _.set(filter, `${query.key}.$lt`, query.value);
-  } else if (query.operator == ">=") {
-    _.set(filter, `${query.key}.$gte`, query.value);
-  } else if (query.operator == "<=") {
-    _.set(filter, `${query.key}.$lte`, query.value);
-  } else if (query.operator == "*=") {
-    _.set(
-      filter,
-      `${query.key}.$regex`,
-      new RegExp(query.value, config.regexFlags)
-    );
+export const resolveValue = (value) => {
+  let output = value;
+  try {
+    if (value.match(/^\d+$/)) {
+      output = parseInt(value);
+    } else if (ObjectId.isValid(value)) {
+      output = ObjectId.createFromHexString(value);
+    }
+  } catch (ignored) {
+    //
+  }
+  return output;
+};
+
+export const isValidCriteria = (c: Criteria) => c.key && c.operator;
+
+export const resolveCriteria = (str: string) => {
+  const matcher = str.match(regex);
+  if (!matcher) {
+    throw new InvalidCriteriaError(str);
+  }
+  return new Criteria(matcher[1], matcher[2], matcher[3]);
+};
+
+const aggregateCriteria = <T>(filter: Filter<T>, criteria: Criteria) => {
+  if (criteria.operator == "==") {
+    _.set(filter, `${criteria.key}`, criteria.value);
+  } else if (criteria.operator == "!=") {
+    _.set(filter, `${criteria.key}.$ne`, criteria.value);
+  } else if (criteria.operator == ">") {
+    _.set(filter, `${criteria.key}.$gt`, criteria.value);
+  } else if (criteria.operator == "<") {
+    _.set(filter, `${criteria.key}.$lt`, criteria.value);
+  } else if (criteria.operator == ">=") {
+    _.set(filter, `${criteria.key}.$gte`, criteria.value);
+  } else if (criteria.operator == "<=") {
+    _.set(filter, `${criteria.key}.$lte`, criteria.value);
+  } else if (criteria.operator == "*=") {
+    _.set(filter, `${criteria.key}.$regex`, new RegExp(criteria.value, config.regexFlags));
   }
   return filter;
 };
 
-export const query = <T>(queries: string[] = []): Filter<T> =>
-  queries
-    .map((x) => criteria(x))
-    .filter((x) => isValidQuery(x))
-    .reduce(aggregate, {});
+export const resolveQuery = <T>(q: string): Filter<T> => q.split(config.queryDelimiter).map((x) => resolveCriteria(x)).reduce(aggregateCriteria, {});
+export const resolveFilter = resolveQuery; // equivalent
